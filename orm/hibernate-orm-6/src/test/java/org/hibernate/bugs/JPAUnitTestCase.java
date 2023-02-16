@@ -28,54 +28,60 @@ public class JPAUnitTestCase {
     // Entities are auto-discovered, so just add them anywhere on class-path
     // Add your tests, using standard JUnit.
     @Test
-    public void hhh123Test() throws Exception {
+    public void wrong_group_by_and_order_by_generated() {
         EntityManager entityManager = entityManagerFactory.createEntityManager();
         entityManager.getTransaction().begin();
         entityManager.createQuery(
                         "select " +
-                                "c.id as clientId," +
-                                "c.name as clientName," +
-                                "t.code as typeCode," +
-                                "g.id as generationId," +
+                                "c.id," +
+                                "c.name," +
+                                "t.code," +
+                                "g.id," +
                                 "sum(e.balance)" +
                                 "from Card e " +
                                 "inner join e.generation g " +
                                 "inner join g.type t " +
                                 "inner join t.client c " +
-                                "group by clientId, typeCode, generationId " +
-                                "order by clientName, typeCode, generationId", Object[].class)
+                                "group by c.id, t.code, g.id " +
+                                "order by c.name, t.code, g.id", Object[].class)
                 .getResultList();
 
-        Assertions.fail("Strange order by generated (see log)");
+        Assertions.fail("Wrong group by and wrong order by generated (see log)");
 
         /*
-        Strange order by generated
+        select
+            t1_0.client_id,
+            c2_0.name,
+            g1_0.type_code,
+            c1_0.generation_id,
+            sum(c1_0.balance)
+        from
+            Card c1_0
+        join
+            Generation g1_0
+                on g1_0.id=c1_0.generation_id
+        join
+            CardType t1_0
+                on t1_0.code=g1_0.type_code
+        join
+            Client c2_0
+                on c2_0.id=t1_0.client_id
+        group by
+            t1_0.client_id,
+            g1_0.type_code,
+            c1_0.generation_id
+        order by
+            c2_0.name,
+            g1_0.type_code,
+            c1_0.generation_id
+        */
 
-            select
-                t1_0.client_id c0,
-                c2_0.name c1,
-                g1_0.type_code c2,
-                c1_0.generation_id c3,
-                sum(c1_0.balance) c4
-            from
-                Card c1_0
-            join
-                Generation g1_0
-                    on g1_0.id=c1_0.generation_id
-            join
-                CardType t1_0
-                    on t1_0.code=g1_0.type_code
-            join
-                Client c2_0
-                    on c2_0.id=t1_0.client_id
-            group by
-                c0,
-                c2,
-                c3
-            order by
-                2,
-                3,
-                4
+        /*
+        The ‘group by’ should be: group by c2_0.id, t1_0.code, g1_0.id
+        The ‘order by’ should be: order by c2_0.name, t1_0.code, g1_0.id
+
+        This sql worked with H2 but doesn't work with Postgresql (11 and latest version)
+        [42803] ERROR: column "c2_0.name," must appear in the GROUP BY clause or be used in an aggregate function Position : 31
          */
 
         entityManager.getTransaction().commit();
